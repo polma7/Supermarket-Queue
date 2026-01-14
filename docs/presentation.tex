@@ -1,0 +1,257 @@
+% Supermarket Queue Management System (MQTT)
+% DAI Project Presentation (LaTeX Beamer)
+% Build:
+%   pdflatex presentation.tex
+% or (recommended):
+%   latexmk -pdf presentation.tex
+
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\title[Supermarket Queue (MQTT)]{Distributed Supermarket Queue Management System (MQTT)}
+\subtitle{Distributed Artificial Intelligence (DAI) Project}
+\author{\textit{Student(s) Name}}
+\institute{\textit{Course / University}}
+\date{\today}
+
+\begin{document}
+
+%------------------------------------------------
+\begin{frame}
+  \titlepage
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Agenda}
+  \begin{enumerate}
+    \item Problem and goals
+    \item System architecture
+    \item Algorithms and code overview
+    \item DAI principles implemented
+    \item Execution examples
+    \item Conclusions and future work
+  \end{enumerate}
+\end{frame}
+
+%------------------------------------------------
+\section{Problem and Goals}
+
+\begin{frame}{Problem}
+  \begin{itemize}
+    \item Supermarkets have multiple checkout counters.
+    \item Customer arrivals are uncertain and may cause uneven queues.
+    \item Poor distribution increases waiting time and reduces throughput.
+    \item Requirement: use a distributed technology to coordinate autonomous components.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Goals}
+  \begin{itemize}
+    \item Model checkout counters as independent, concurrent \textbf{agents}.
+    \item Coordinate agents using an \textbf{MQTT pub/sub} broker.
+    \item Allocate customers to checkouts using a simple load-balancing policy.
+    \item Provide observability through a lightweight GUI dashboard.
+    \item Keep the project easy to extend with new DAI strategies.
+  \end{itemize}
+\end{frame}
+
+%------------------------------------------------
+\section{System Architecture}
+
+\begin{frame}{Components (Processes)}
+  \begin{itemize}
+    \item \textbf{Queue Manager} (manager.py)
+      \begin{itemize}
+        \item Maintains authoritative queue state.
+        \item Assigns customers to checkouts.
+        \item Publishes periodic status snapshots.
+      \end{itemize}
+    \item \textbf{Checkout agents} (checkout.py)
+      \begin{itemize}
+        \item Register, heartbeat, request next customer, simulate service.
+        \item Publish local telemetry (served customers).
+      \end{itemize}
+    \item \textbf{Customer generator} (generator.py)
+      \begin{itemize}
+        \item Generates arrivals using a Poisson arrival process.
+        \item Assigns a basket size to each customer.
+      \end{itemize}
+    \item \textbf{GUI dashboard} (gui.py)
+      \begin{itemize}
+        \item Subscribes to system topics and renders live state.
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{MQTT Communication}
+  \begin{itemize}
+    \item MQTT topics are namespaced (default: \texttt{supermarket/v0}).
+    \item Two interaction patterns:
+      \begin{enumerate}
+        \item \textbf{Request/Response (RPC-like)} using \texttt{corr\_id} + \texttt{reply\_to}
+        \item \textbf{Streaming Pub/Sub} for status and telemetry
+      \end{enumerate}
+  \end{itemize}
+
+  \vspace{0.5em}
+  \begin{block}{Main Topics}
+    \begin{itemize}
+      \item \texttt{<ns>/manager/requests} and \texttt{<ns>/manager/responses/<client\_id>}
+      \item \texttt{<ns>/checkouts/requests} and \texttt{<ns>/checkouts/responses/<checkout\_id>}
+      \item \texttt{<ns>/status/updates} (manager snapshots)
+      \item \texttt{<ns>/checkouts/status/<checkout\_id>} (checkout telemetry)
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+%------------------------------------------------
+\section{Algorithms and Code Overview}
+
+\begin{frame}{Arrival Model (Poisson Process)}
+  \begin{itemize}
+    \item Customer arrivals follow a Poisson process with rate \(\lambda\) customers/sec.
+    \item Inter-arrival times are exponentially distributed:
+      \[\Delta t \sim \text{Exp}(\lambda)\]
+    \item Implemented in the generator (generator.py).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Customer Basket Size and Service Time}
+  \begin{itemize}
+    \item Each customer has a \textbf{basket size} = number of grocery items.
+    \item Checkout service time is simulated as:
+      \[\text{service\_time} = \text{base\_seconds} + \text{per\_item\_seconds} \cdot \text{basket\_size}\]
+    \item Implemented in \texttt{service\_time.py} and used by \texttt{checkout.py}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Load Balancing Policy (Manager)}
+  \begin{itemize}
+    \item Implemented in \texttt{QueueManager.assign\_customer()}.
+    \item The manager computes a predicted workload for each checkout:
+      \[\text{workload} = \sum \text{basket\_size(queue)} + \text{queue\_len}\]
+    \item The customer is assigned to the checkout with minimum workload.
+    \item Tie-breaking uses \textbf{round-robin} among tied candidates.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Why Round-Robin Tie-Breaking?}
+  \begin{itemize}
+    \item If multiple checkouts have equal workload, choosing by ID (C1, C2, ...) introduces bias.
+    \item With many checkouts and bursty arrivals, ties are frequent.
+    \item Round-robin avoids systematic preference for early IDs.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Code Structure (Files)}
+  \begin{itemize}
+    \item \texttt{app.py}: CLI entrypoint (\texttt{run}, plus debug commands)
+    \item \texttt{run\_all.py}: launches manager, checkouts, generator; opens GUI
+    \item \texttt{manager.py}: queues + assignment algorithm + MQTT adapter
+    \item \texttt{checkout.py}: checkout agent loop + telemetry
+    \item \texttt{generator.py}: Poisson arrivals + basket sizes
+    \item \texttt{customer.py}: manual customer injection
+    \item \texttt{gui.py}: dashboard view
+    \item \texttt{mqtt\_client.py}, \texttt{mqtt\_topics.py}: MQTT utilities and topic naming
+  \end{itemize}
+\end{frame}
+
+%------------------------------------------------
+\section{DAI Principles Implemented}
+
+\begin{frame}{Distributed Artificial Intelligence Aspects}
+  \begin{itemize}
+    \item \textbf{Autonomy}: each checkout runs independently and makes local progress.
+    \item \textbf{Distribution}: components are separate processes; coordination occurs via messages.
+    \item \textbf{Coordination}: the manager performs allocation; checkouts request tasks (customers).
+    \item \textbf{Observability}: telemetry topics and manager snapshots provide global monitoring.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Coordination Pattern Used (v0)}
+  \begin{itemize}
+    \item Current system uses \textbf{mediated coordination}.
+      \begin{itemize}
+        \item The manager is the coordination hub.
+        \item Checkouts do not negotiate directly with each other in this version.
+      \end{itemize}
+    \item This provides a clean baseline for later extensions:
+      \begin{itemize}
+        \item checkout-to-checkout negotiation topics
+        \item auctions / contract-net for task allocation
+        \item swapping customers when unbalanced
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+%------------------------------------------------
+\section{Execution Examples}
+
+\begin{frame}[fragile]{Run Everything (with GUI)}
+\begin{verbatim}
+# Start broker (example)
+mosquitto -p 1883
+
+# Run environment (manager + N checkouts + generator + GUI)
+python -m supermarket_queue.app run \
+  --mqtt-host 127.0.0.1 --mqtt-port 1883 \
+  --num-checkouts 5 \
+  --arrival-rate 0.5 \
+  --mean-basket-size 20 \
+  --base-seconds 0.5 --per-item-seconds 0.05 \
+  --gui
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]{Manual Customer Injection (Debug)}
+\begin{verbatim}
+python -m supermarket_queue.app customer --name Alice --basket-size 15
+python -m supermarket_queue.app customer --name Bob   --basket-size 5
+\end{verbatim}
+\end{frame}
+
+\begin{frame}{What to Observe in the GUI}
+  \begin{itemize}
+    \item Checkout ordering is numeric: C1, C2, ..., C10, ...
+    \item Queue length per checkout (manager snapshot).
+    \item Served customers per checkout (checkout telemetry).
+    \item Last seen (heartbeat freshness).
+  \end{itemize}
+\end{frame}
+
+%------------------------------------------------
+\section{Conclusions}
+
+\begin{frame}{Conclusions}
+  \begin{itemize}
+    \item Implemented a working MQTT-based distributed system with autonomous agents.
+    \item Load balancing based on predicted workload improves fairness.
+    \item Round-robin tie-breaking avoids systematic bias under ties.
+    \item The architecture is modular and supports future DAI extensions.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Future Work}
+  \begin{itemize}
+    \item Replace or complement manager with direct agent negotiation.
+    \item Improve assignment using predicted waiting time from service parameters.
+    \item Add fault tolerance (retained messages, reconnection strategies, backup manager).
+    \item Improve GUI with additional metrics (utilization, predicted wait, throughput).
+  \end{itemize}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}
+  \centering
+  \Large Questions?
+\end{frame}
+
+\end{document}
+
