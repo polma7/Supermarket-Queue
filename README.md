@@ -1,6 +1,6 @@
 # Supermarket Queue Management System (MQTT)
 
-Distributed-systems / DAI project in which supermarket checkout counters are implemented as **agents** that coordinate via an **MQTT broker**.
+Distributed-system / DAI project in which supermarket checkout counters are implemented as **agents** that coordinate via an **MQTT broker**.
 
 ---
 
@@ -35,8 +35,6 @@ python -m supermarket_queue.app run \
   --per-item-seconds 0.05 \
   --gui
 ```
-
-Stop everything with **Ctrl+C** (or close the GUI window if `--gui` is enabled).
 
 ---
 
