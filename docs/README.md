@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="shoping_cart.png" width="400">
+</p>
+
 # Supermarket Queue Management System (MQTT)
 
 Distributed-system / DAI project in which supermarket checkout counters are implemented as **agents** that coordinate via an **MQTT broker**.
