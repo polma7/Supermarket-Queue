@@ -1,0 +1,9 @@
+# v0 scaffold: keep only tool configs (pytest/ruff).
+# Runtime dependency (install via pip): paho-mqtt
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
